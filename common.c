@@ -114,7 +114,6 @@ static ssize_t gethwid(char *, int, const char *, uint16_t *);
 static char *sprint_uint64(char *, int, uint64_t);
 static char *sprint_auth(struct dhcp6_optinfo *);
 
-/* XXX */
 int
 rawop_count_list(head)
 	struct rawop_list *head;
@@ -122,7 +121,7 @@ rawop_count_list(head)
 	struct rawoption *op;
 	int i;
 
-	//dprintf(LOG_INFO, FNAME, "counting list at %p", (void*)head);
+	//d_printf(LOG_INFO, FNAME, "counting list at %p", (void*)head);
 
 	for (i = 0, op = TAILQ_FIRST(head); op; op = TAILQ_NEXT(op, link)) {
 		i++;
@@ -137,18 +136,18 @@ rawop_clear_list(head)
 {
 	struct rawoption *op;
 
-	//dprintf(LOG_INFO, FNAME, "clearing %d rawops at %p", rawop_count_list(head), (void*)head);
+	//d_printf(LOG_INFO, FNAME, "clearing %d rawops at %p", rawop_count_list(head), (void*)head);
 
 	while ((op = TAILQ_FIRST(head)) != NULL) {
 
-		//dprintf(LOG_INFO, FNAME, "  current op: %p link: %p", (void*)op, op->link);
+		//d_printf(LOG_INFO, FNAME, "  current op: %p link: %p", (void*)op, op->link);
 		TAILQ_REMOVE(head, op, link);
 
 		if (op->data != NULL) {
 			d_printf(LOG_INFO, FNAME, "    freeing op data at %p", (void*)op->data);
 			free(op->data);
 		}
-		free(op);	// Needed?
+		free(op);	// Needed? yes
 	}
 	return;
 }
@@ -185,7 +184,7 @@ rawop_copy_list(dst, src)
 			goto fail;
 		}
 		memcpy(newop->data, op->data, newop->datalen);
-		//dprintf(LOG_INFO, FNAME, "    copied %d bytes of data at %p", newop->datalen, (void*)newop->data);
+		//d_printf(LOG_INFO, FNAME, "    copied %d bytes of data at %p", newop->datalen, (void*)newop->data);
 
 		TAILQ_INSERT_TAIL(dst, newop, link);
 	}
@@ -1135,7 +1134,7 @@ get_duid(idfile, duid)
 	if (!fp) {
 		if ((fp = fopen(idfile, "w+")) == NULL) {
 			d_printf(LOG_ERR, FNAME,
-			    "failed to open DUID file for save");
+			    "failed to open DUID file %s for save", idfile);
 			goto fail;
 		}
 		if ((fwrite(&len, sizeof(len), 1, fp)) != 1) {
@@ -1416,8 +1415,6 @@ dhcp6_init_options(optinfo)
 	TAILQ_INIT(&optinfo->nispname_list);
 	TAILQ_INIT(&optinfo->bcmcs_list);
 	TAILQ_INIT(&optinfo->bcmcsname_list);
-
-	/* XXX */
 	TAILQ_INIT(&optinfo->rawops);
 
 	optinfo->authproto = DHCP6_AUTHPROTO_UNDEF;
@@ -1463,7 +1460,6 @@ dhcp6_clear_options(optinfo)
 	if (optinfo->ifidopt_id != NULL)
 		free(optinfo->ifidopt_id);
 
-	/* XXX */
 	rawop_clear_list(&optinfo->rawops);
 
 	dhcp6_init_options(optinfo);
@@ -1515,7 +1511,6 @@ dhcp6_copy_options(dst, src)
 	dst->refreshtime = src->refreshtime;
 	dst->pref = src->pref;
 
-	/* XXX */
 	rawop_copy_list(&dst->rawops, &src->rawops);
 
 	if (src->relaymsg_msg != NULL) {
@@ -1585,9 +1580,6 @@ dhcp6_get_options(p, ep, optinfo)
 	struct dhcp6_ia ia;
 	struct dhcp6_list sublist;
 	int authinfolen;
-
-	/* XXX */
-	struct rawoption *rawop;
 
 	bp = (char *)p;
 	for (; p + 1 <= ep; p = np) {
@@ -1974,15 +1966,6 @@ dhcp6_get_options(p, ep, optinfo)
 
 			break;
 
-		/* XXX */
-		case DHCPOPT_RAW:
-			rawop = (struct rawoption *) cp;
-			d_printf(LOG_DEBUG, FNAME,
-				"raw option: %d",
-				rawop->opnum);
-			TAILQ_INSERT_TAIL(&optinfo->rawops, rawop, link);
-			break;
-
 		default:
 			/* no option specific behavior */
 			d_printf(LOG_INFO, FNAME,
@@ -2359,7 +2342,6 @@ dhcp6_set_options(type, optbp, optep, optinfo)
 	struct dhcp6_listval *stcode, *op;
 	int len = 0, optlen;
 	char *tmpbuf = NULL;
-	/* XXX */
 	struct rawoption *rawop;
 
 	if (optinfo->clientID.duid_len) {
@@ -2577,7 +2559,7 @@ dhcp6_set_options(type, optbp, optep, optinfo)
 			goto fail;
 		}
 	}
-	/* XXX */
+
 	for (rawop = TAILQ_FIRST(&optinfo->rawops); rawop;
 	    rawop = TAILQ_NEXT(rawop, link)) {
 
@@ -2590,7 +2572,7 @@ dhcp6_set_options(type, optbp, optep, optinfo)
 		    optep, &len) != 0) {
 			goto fail;
 		}
-   }
+	}
 
 	if (optinfo->authproto != DHCP6_AUTHPROTO_UNDEF) {
 		struct dhcp6opt_auth *auth;
@@ -3172,9 +3154,10 @@ dhcp6optstr(type)
 		return ("subscriber ID");
 	case DH6OPT_CLIENT_FQDN:
 		return ("client FQDN");
-	/* XXX */
+/*	Either a known or an unknown option. RAW is a syntax, not an option
 	case DHCPOPT_RAW:
 		return ("raw");
+*/
 	default:
 		snprintf(genstr, sizeof(genstr), "opt_%d", type);
 		return (genstr);
@@ -3323,12 +3306,15 @@ setloglevel(debuglevel)
 		switch(debuglevel) {
 		case 0:
 			setlogmask(LOG_UPTO(LOG_ERR));
+			debug_thresh = LOG_ERR;
 			break;
 		case 1:
 			setlogmask(LOG_UPTO(LOG_INFO));
+			debug_thresh = LOG_INFO;
 			break;
 		case 2:
 			setlogmask(LOG_UPTO(LOG_DEBUG));
+			debug_thresh = LOG_DEBUG;
 			break;
 		}
 	}
@@ -3364,8 +3350,16 @@ d_printf(int level, const char *fname, const char *fmt, ...)
 		    tm_now->tm_hour, tm_now->tm_min, tm_now->tm_sec,
 		    fname, printfname ? ": " : "",
 		    logbuf);
-	} else
+	} else {
+		/*
+		 * XXX DEBUG/INFO require NOTICE in order to
+		 * to appear in the OPNsense system log file.
+                 */
+		if (debug_thresh <= level && level > LOG_NOTICE) {
+			level = LOG_NOTICE;
+		}
 		syslog(level, "%s%s%s", fname, printfname ? ": " : "", logbuf);
+	}
 }
 
 int

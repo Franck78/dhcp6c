@@ -59,7 +59,7 @@ ifinit(ifname)
 
 	if ((ifp = find_ifconfbyname(ifname)) != NULL) {
 		d_printf(LOG_NOTICE, FNAME, "duplicated interface: %s", ifname);
-		return (NULL);
+		return (ifp);
 	}
 
 	if ((ifp = malloc(sizeof(*ifp))) == NULL) {
@@ -80,6 +80,7 @@ ifinit(ifname)
 
 	TAILQ_INIT(&ifp->reqopt_list);
 	TAILQ_INIT(&ifp->iaconf_list);
+	TAILQ_INIT(&ifp->rawops);
 
 	ifp->authproto = DHCP6_AUTHPROTO_UNDEF;
 	ifp->authalgorithm = DHCP6_AUTHALG_UNDEF;
